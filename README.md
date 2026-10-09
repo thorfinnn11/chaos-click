@@ -20,12 +20,9 @@ and referencing them below, or replacing the image URLs with hosted links / loca
 | **Meltdown: CRT Audit Complete** | ![Meltdown - Room 101 Audit Screen](https://via.placeholder.com/800x450/080808/B45309?text=Meltdown+Audit+Complete+Room+101) <br> *(Drop screenshot: `screenshots/stage-meltdown.png`)* | CRT monitor power-down beam collapse, error screen headline *"Audit complete. You were never alone."*, and "Return to your desk" reality reboot. |
 
 ### Add Your Screenshots Here
-```markdown
-<!-- Replace the paths below with your saved screenshots -->
 <img width="1370" height="854" alt="WhatsApp Image 2026-10-09 at 4 46 27 PM" src="https://github.com/user-attachments/assets/228fffff-08e9-4b01-9f34-1e74a1fe9676" />
 <img width="1371" height="851" alt="WhatsApp Image 2026-10-09 at 4 46 27 PM (1)" src="https://github.com/user-attachments/assets/abf61160-fdab-4b4c-a625-416029c34ec1" />
 <img width="1367" height="854" alt="WhatsApp Image 2026-10-09 at 4 46 27 PM (2)" src="https://github.com/user-attachments/assets/54dbce9d-6a69-4e8d-92bf-71a9c4fc7df9" />
-```
 
 ---
 
