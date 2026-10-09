@@ -1,0 +1,6 @@
+{
+  "name": "CHAOS.exe // 1984 Telescreen Archive",
+  "description": "An Orwellian brutalist surveillance interface inspired by George Orwell's 1984. Big Brother telescreens, halftone eye tracking, doublethink glitch engines, and procedural audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

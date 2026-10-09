@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CHAOS.exe — Arch Linux Standalone Build</title>
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --accent: #00ff66;
+      --text: #f0f2f5;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: center;
+      padding: 30px 15px;
+      user-select: none;
+      transition: background 0.4s, color 0.4s;
+    }
+    header { display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto; width: 100%; border-bottom: 1px solid #232733; padding-bottom: 12px; }
+    .brand { font-weight: 900; letter-spacing: 2px; }
+    .status { color: var(--accent); font-size: 12px; }
+    main { max-width: 800px; margin: 40px auto; width: 100%; }
+    h1 { font-size: clamp(32px, 8vw, 64px); line-height: 1.1; margin: 20px 0; }
+    p { color: #8b949e; margin-bottom: 25px; font-size: 14px; }
+    #clickBtn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 18px 36px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 4px 15px rgba(0, 255, 102, 0.4);
+      transition: transform 0.15s;
+    }
+    #clickBtn:hover { transform: scale(1.05); }
+    .meter-box { max-width: 500px; margin: 30px auto; text-align: left; }
+    .meter-head { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+    .meter-track { height: 12px; background: #161a24; border: 1px solid #2d3548; border-radius: 2px; overflow: hidden; }
+    .meter-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 30px 0; text-align: left; }
+    .card { background: #121520; border: 1px solid #222938; padding: 15px; border-radius: 6px; cursor: pointer; }
+    .terminal { background: #07080c; border: 1px solid #222a3a; padding: 15px; text-align: left; font-size: 11px; color: #73e68c; max-width: 650px; margin: 20px auto; min-height: 80px; }
+    .actions { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+    .btn-sub { background: #161b26; border: 1px solid #2a3348; color: #fff; padding: 10px 16px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+    .particle { position: fixed; pointer-events: none; z-index: 9999; font-weight: bold; animation: fly 0.8s ease-out forwards; }
+    @keyframes fly { to { transform: translate(var(--dx), var(--dy)) rotate(180deg); opacity: 0; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">CHAOS<span style="color:var(--accent)">.exe</span></div>
+    <div class="status" id="status">● REALITY STABLE</div>
+  </header>
+
+  <main>
+    <div style="color:var(--accent); font-size: 11px; letter-spacing: 2px;">ARCH LINUX STANDALONE // V1</div>
+    <h1 id="headline">A PERFECTLY<br>NORMAL WEBSITE.</h1>
+    <p id="sub">Everything is under control. There is absolutely no reason to click the button.</p>
+
+    <button id="clickBtn">DO NOT CLICK</button>
+
+    <div class="meter-box">
+      <div class="meter-head">
+        <span id="stageLabel">STAGE 01 — INNOCENCE</span>
+        <span id="entropyVal">0 / 100%</span>
+      </div>
+      <div class="meter-track">
+        <div class="meter-fill" id="meterFill"></div>
+      </div>
+    </div>
+
+    <div id="quote" style="min-height: 24px; color: var(--accent); font-weight: bold; font-size: 13px;">
+      > Please make a responsible decision.
+    </div>
+
+    <div class="cards">
+      <div class="card" onclick="handlePoke('Status')">
+        <div style="font-size:10px; color:var(--accent);">01 / STATUS</div>
+        <strong id="c1">All systems nominal.</strong>
+      </div>
+      <div class="card" onclick="handlePoke('Security')">
+        <div style="font-size:10px; color:var(--accent);">02 / SECURITY</div>
+        <strong id="c2">Extremely secure.</strong>
+      </div>
+      <div class="card" onclick="handlePoke('Reality')">
+        <div style="font-size:10px; color:var(--accent);">03 / PURPOSE</div>
+        <strong id="c3">Just an experiment.</strong>
+      </div>
+    </div>
+
+    <div class="terminal" id="terminalLog">
+      &gt; Arch Linux session loaded.<br>
+      &gt; Awaiting user input...
+    </div>
+
+    <div class="actions">
+      <button class="btn-sub" onclick="resetReality()">↻ RESET REALITY</button>
+      <button class="btn-sub" onclick="toggleColor()">⚡ SHIFT REALITY</button>
+    </div>
+  </main>
+
+  <footer style="font-size:11px; color:#555;">
+    CHAOS.exe // Single file distribution for Arch Linux
+  </footer>
+
+  <script>
+    let chaos = 0;
+    let clicks = 0;
+    let audioCtx = null;
+
+    function playTone(freq) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = chaos > 50 ? 'sawtooth' : 'sine';
+        osc.frequency.setValueAtTime(freq + (chaos * 8), audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.13);
+      } catch(e) {}
+    }
+
+    function burst(x, y) {
+      for (let i = 0; i < 6; i++) {
+        const s = document.createElement('span');
+        s.className = 'particle';
+        s.textContent = ['✦', '!', '?', 'CHAOS', '×'][Math.floor(Math.random() * 5)];
+        s.style.left = x + 'px';
+        s.style.top = y + 'px';
+        s.style.color = '#00ff66';
+        s.style.setProperty('--dx', (Math.random() * 180 - 90) + 'px');
+        s.style.setProperty('--dy', (Math.random() * -180 - 20) + 'px');
+        document.body.appendChild(s);
+        setTimeout(() => s.remove(), 800);
+      }
+    }
+
+    function updateUI() {
+      document.getElementById('meterFill').style.width = chaos + '%';
+      document.getElementById('entropyVal').innerText = chaos + ' / 100%';
+      const stages = [
+        "A PERFECTLY<br>NORMAL WEBSITE.",
+        "DID THAT<br>JUST MOVE?",
+        "SOMETHING IS<br>VERY WRONG.",
+        "WE HAVE LOST<br>THE PLOT.",
+        "I AM THE<br>WEBSITE NOW."
+      ];
+      const stageIdx = Math.min(4, Math.floor(chaos / 20));
+      document.getElementById('headline').innerHTML = stages[stageIdx];
+      document.getElementById('stageLabel').innerText = 'STAGE 0' + (stageIdx + 1);
+
+      if (chaos >= 80) {
+        document.body.style.transform = 'rotate(' + (Math.sin(clicks) * 2) + 'deg)';
+      }
+    }
+
+    function handlePoke(name) {
+      chaos = Math.min(100, chaos + 4);
+      playTone(400);
+      log('> Interrogated node: ' + name);
+      updateUI();
+    }
+
+    function log(msg) {
+      const term = document.getElementById('terminalLog');
+      term.innerHTML = msg + '<br>' + term.innerHTML.split('<br>').slice(0, 4).join('<br>');
+    }
+
+    document.getElementById('clickBtn').addEventListener('click', (e) => {
+      clicks++;
+      chaos = Math.min(100, chaos + 6);
+      playTone(320);
+      burst(e.clientX, e.clientY);
+      const quotes = [
+        "I noticed that.",
+        "That was unnecessary.",
+        "The CSS is complaining.",
+        "Do you hear the electronic glitch?",
+        "Entropy rising."
+      ];
+      document.getElementById('quote').innerText = '> ' + quotes[Math.floor(Math.random() * quotes.length)];
+      log('> FORBIDDEN_CLICK_COUNT: ' + clicks);
+      updateUI();
+    });
+
+    function toggleColor() {
+      const hues = [120, 320, 45, 180, 280];
+      const h = hues[Math.floor(Math.random() * hues.length)];
+      document.documentElement.style.setProperty('--accent', 'hsl(' + h + ', 100%, 60%)');
+      playTone(600);
+    }
+
+    function resetReality() {
+      chaos = 0;
+      clicks = 0;
+      document.body.style.transform = 'none';
+      document.getElementById('quote').innerText = '> Reality rebooted.';
+      log('> SYSTEM_RESET_LOGGED');
+      updateUI();
+    }
+  </script>
+</body>
+</html>
