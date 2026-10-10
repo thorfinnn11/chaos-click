@@ -184,8 +184,8 @@ The visual re-skin strictly follows the architectural separation rules:
 ### Installation
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd Halcyon-Chaos-Click
+git clone https://github.com/thorfinnn11/chaos-click.git
+cd chaos-click
 
 # Install dependencies
 npm install
