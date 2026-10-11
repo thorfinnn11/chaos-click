@@ -45,7 +45,15 @@ import { ChaosReportModal } from './components/ChaosReportModal';
 import { AchievementsModal } from './components/AchievementsModal';
 import { ArchLinuxGuideModal } from './components/ArchLinuxGuideModal';
 import { VisualVintageLayers } from './components/VisualVintageLayers';
+import { CrtShaderCanvas } from './components/CrtShaderCanvas';
+import { BiometricWebcamMirror } from './components/BiometricWebcamMirror';
 import { useScrambleText } from './utils/useScramble';
+import { droneSynthesizer } from './utils/droneSynthesizer';
+import { usePanopticon } from './utils/socketPanopticon';
+import { useGateController } from './puzzles/useGateController';
+import { PuzzleModal } from './puzzles/PuzzleModal';
+import { GateDebugOverlay } from './puzzles/GateDebugOverlay';
+import { BossOverseer } from './game';
 
 export type PersonalityMode = 'glitch' | 'absurd' | 'gravity';
 
@@ -299,6 +307,82 @@ export default function App() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
 
+  // Active Step Index (0 to 5)
+  const stepIndex = Math.min(5, clicks);
+
+  // Panopticon WebSocket Telemetry
+  const { stats: panopticonStats, recentEvents: panopticonEvents, myWorkerId, myLocation, broadcastAction } = usePanopticon(stepIndex, chaos);
+
+  // Degauss coil effect trigger counter
+  const [degaussCount, setDegaussCount] = useState<number>(0);
+
+  // Toast for Stage 0 Session Restored
+  const [restoredToast, setRestoredToast] = useState(false);
+
+  // Advance stage callback invoked exclusively when a puzzle gate is solved
+  const advanceToStage = useCallback((targetStage: number) => {
+    setClicks(targetStage);
+    const newChaos = Math.min(100, Math.round(targetStage * (100 / 6)));
+    setChaos(newChaos);
+    setDegaussCount((prev) => prev + 1);
+
+    // Achievements for each puzzle solved
+    if (targetStage === 1) achievementsEngine.unlock('puzzle_1_solved');
+    else if (targetStage === 2) achievementsEngine.unlock('puzzle_2_solved');
+    else if (targetStage === 3) achievementsEngine.unlock('puzzle_3_solved');
+    else if (targetStage === 4) achievementsEngine.unlock('puzzle_4_solved');
+    else if (targetStage === 5) achievementsEngine.unlock('puzzle_5_solved');
+
+    broadcastAction('puzzle_solved');
+
+    // Check Meltdown / Overlord Trigger (at 6 clicks / 100% chaos)
+    if (newChaos >= 100) {
+      setButtonOffset({ x: 0, y: 0 });
+      setRoguePopups([]);
+      achievementsEngine.unlock('overlord_reached');
+      audioEngine.playOverlordTakeover();
+      setIsReportOpen(true);
+    }
+  }, [broadcastAction]);
+
+  // Gate Controller for freeze-and-solve puzzles
+  const {
+    gateState,
+    isFrozen,
+    isThawing,
+    isBoss,
+    isReverting,
+    isInputLocked,
+    verticalHoldRoll,
+    requestAdvance,
+    handleSolved,
+    handleFail,
+    setAssistMode,
+    startBoss,
+    handleBossDefeated,
+  } = useGateController({
+    lenis: lenisRef.current,
+    onAdvanceCallback: advanceToStage,
+    triggerDegauss: () => setDegaussCount((prev) => prev + 1),
+    currentChaos: chaos,
+  });
+
+  const handleBossVictory = useCallback(() => {
+    achievementsEngine.unlock('boss_defeated');
+    broadcastAction('boss_defeated');
+    handleBossDefeated();
+    setRestoredToast(true);
+    setTimeout(() => {
+      setRestoredToast(false);
+    }, 6000);
+  }, [broadcastAction, handleBossDefeated]);
+
+  // Update drone synthesizer read-only with current chaos and mute state
+  useEffect(() => {
+    droneSynthesizer.setMuted(isMuted);
+    droneSynthesizer.updateChaos(chaos);
+  }, [chaos, isMuted]);
+
   // Exactly 5 stages (0 to 4) escalating every 25% (4 clicks to reach 100%)
   const stageIndex = Math.min(4, Math.floor(chaos / 25));
 
@@ -508,14 +592,17 @@ export default function App() {
     }, 700);
   };
 
-  // Main Click Handler: 4 clicks to 100%, and at 100% handles Confession & Reset
+  // Main Click Handler: routes boundary crossings through requestAdvance
   const handleChaosClick = (
     e: React.MouseEvent,
     elementKey: 'mainButton' | 'cards' | 'logo' | 'resetButton' = 'mainButton'
   ) => {
     e.stopPropagation();
 
-    // If already at 100% chaos, clicking the main "CONFESS IN ROOM 101" button completes confession and resets reality!
+    // Prevent clicks while puzzle gate is active or locked
+    if (isFrozen || isThawing || isInputLocked) return;
+
+    // If already at 100% chaos, clicking the main button completes confession and resets reality!
     if (chaos >= 100) {
       audioEngine.playGlitchBurst();
       setCurrentMessage("ROOM 101 CONFESSION ACCEPTED: '2 + 2 = 5! I LOVE BIG BROTHER!' REALITY REBOOTED.");
@@ -572,26 +659,14 @@ export default function App() {
     }
     achievementsEngine.unlock('first_contact');
 
-    // Click positions tracking
+    // Click positions tracking & particles
     if (e.clientX && e.clientY) {
       setClickPositions((prev) => [...prev.slice(-80), { x: e.clientX, y: e.clientY }]);
       triggerParticles(e.clientX, e.clientY);
     }
 
-    // Escalation: exactly 6 clicks to reach 100% (meltdown)
-    const nextClickCount = clicks + 1;
-    setClicks(nextClickCount);
-    const newChaos = Math.min(100, Math.round(nextClickCount * (100 / 6)));
-    setChaos(newChaos);
-
-    // Check Meltdown / Overlord Trigger (at 6 clicks / 100% chaos)
-    if (newChaos >= 100) {
-      setButtonOffset({ x: 0, y: 0 }); // Center button immediately
-      setRoguePopups([]); // Clear popups
-      achievementsEngine.unlock('overlord_reached');
-      audioEngine.playOverlordTakeover();
-      setIsReportOpen(true);
-    }
+    // Panopticon WebSocket broadcast
+    broadcastAction(elementKey);
 
     // Grudge Dialogue or Random Message
     const grudgeQuote = grudgeMemory.getGrudgeDialogue(elementKey);
@@ -607,7 +682,7 @@ export default function App() {
     addLog(randomEvent);
 
     // Popups for Absurd Mode or High Chaos (clamped away from center button)
-    if ((personalityMode === 'absurd' || newChaos >= 75) && newChaos < 100 && Math.random() < 0.4) {
+    if ((personalityMode === 'absurd' || chaos >= 75) && chaos < 100 && Math.random() < 0.4) {
       const popupTypes: ('warning' | 'existential' | 'system')[] = ['warning', 'existential', 'system'];
       const popupMessages = [
         'MINILUV NOTICE: Facial muscle twitch detected. Facecrime citation issued.',
@@ -624,6 +699,22 @@ export default function App() {
         type: popupTypes[Math.floor(Math.random() * popupTypes.length)],
       };
       setRoguePopups((prev) => [...prev.slice(-2), newPopup]);
+    }
+
+    // Secondary interactions (nav, cards, footer, logo) add tension within stage only
+    if (elementKey !== 'mainButton') {
+      return;
+    }
+
+    // Primary CTA click: Gate check before crossing into next stage
+    const targetStage = clicks + 1;
+    if (targetStage <= 5) {
+      // Freeze site and open puzzle gate
+      broadcastAction('puzzle_started');
+      requestAdvance(targetStage);
+    } else {
+      // 6th click: triggers existing meltdown and kernel panic at 100% chaos
+      advanceToStage(6);
     }
   };
 
@@ -653,17 +744,7 @@ export default function App() {
     audioEngine.playGlitchBurst();
     addLog(`MONITOR_INTERROGATED: ${monitorName}`);
     setCurrentMessage(`Interrogating tele-feed: ${monitorName}. Signal static recorded.`);
-    const nextClickCount = clicks + 1;
-    setClicks(nextClickCount);
-    const newChaos = Math.min(100, Math.round(nextClickCount * (100 / 6)));
-    setChaos(newChaos);
-    if (newChaos >= 100) {
-      setButtonOffset({ x: 0, y: 0 });
-      setRoguePopups([]);
-      achievementsEngine.unlock('overlord_reached');
-      audioEngine.playOverlordTakeover();
-      setIsReportOpen(true);
-    }
+    broadcastAction('monitor_interrogated');
   };
 
   // Terminal Custom Command Runner
@@ -751,8 +832,6 @@ export default function App() {
     }
   };
 
-  // Active Step Index (0 to 5)
-  const stepIndex = Math.min(5, clicks);
   const currentStep = HALCYON_STEPS[stepIndex];
 
   // Scramble transitions between steps (~300ms, ease-io)
@@ -774,7 +853,10 @@ export default function App() {
   return (
     <div
       ref={mainContainerRef}
+      data-frozen={isFrozen ? 'true' : undefined}
       className={`min-h-screen relative flex flex-col justify-between overflow-x-hidden selection:bg-[#F59E0B] selection:text-black transition-colors duration-500 ${
+        isFrozen ? 'pointer-events-none select-none' : ''
+      } ${
         clicks >= 5
           ? 'bg-[#121212] text-[#F3F4F6] font-special'
           : clicks >= 3
@@ -785,8 +867,16 @@ export default function App() {
       {/* VISUAL LAYER ONLY: Film grain, scanlines, vignette, roll bar, tears, debris */}
       <VisualVintageLayers chaos={chaos} clicks={clicks} />
 
-      {/* Ghost Cursor at high chaos */}
-      <GhostCursor enabled={clicks >= 4} chaosLevel={chaos} />
+      {/* WebGL 3D CRT Curvature, Phosphor Grille, Degauss Coil & Frozen Vertical Hold */}
+      <CrtShaderCanvas
+        chaos={chaos}
+        degaussTrigger={degaussCount}
+        isFrozen={isFrozen}
+        verticalHoldRoll={verticalHoldRoll}
+      />
+
+      {/* Ghost Cursor at high chaos (suppressed while puzzle is frozen) */}
+      <GhostCursor enabled={clicks >= 4 && !isFrozen} chaosLevel={chaos} />
 
       {/* Rogue Popups for Absurd Mode */}
       <PopupsOverlay
@@ -961,6 +1051,17 @@ export default function App() {
               <span>AUDIT DOSSIER</span>
             </button>
             <button
+              onClick={() => {
+                setDegaussCount((prev) => prev + 1);
+                audioEngine.playGlitchBurst();
+                addLog('DEGAUSS_TRIGGER: Manual magnetic coil discharged.');
+              }}
+              className="px-4 py-2 bg-[#202020] border border-[#3a3a3a] hover:border-[#F59E0B] text-[#F3F4F6] shadow-[4px_4px_0_#0a0a0a] uppercase font-bold flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <Radio className="w-3.5 h-3.5 text-[#F59E0B]" />
+              <span>DEGAUSS CRT</span>
+            </button>
+            <button
               onClick={() => setIsAchievementsOpen(true)}
               className="px-4 py-2 bg-[#202020] border border-[#3a3a3a] hover:border-[#F59E0B] text-[#F3F4F6] shadow-[4px_4px_0_#0a0a0a] uppercase font-bold flex items-center gap-2 cursor-pointer transition-colors"
             >
@@ -996,10 +1097,42 @@ export default function App() {
 
               {/* Center Nav Links */}
               <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-[#8d8d8d]">
-                <span className="hover:text-[#F3F4F6] cursor-pointer transition-colors">Product</span>
-                <span className="hover:text-[#F3F4F6] cursor-pointer transition-colors">Teams</span>
-                <span className="hover:text-[#F3F4F6] cursor-pointer transition-colors">Pricing</span>
-                <span className="hover:text-[#F3F4F6] cursor-pointer transition-colors">Customers</span>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('NAV_NAVIGATE: Product architecture overview requested.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Product
+                </button>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('NAV_NAVIGATE: Team monitoring policies indexed.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Teams
+                </button>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('NAV_NAVIGATE: Tier pricing: Free forever during corporate compliance trial.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Pricing
+                </button>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('NAV_NAVIGATE: 1,200 organizations audited.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Customers
+                </button>
               </nav>
 
               {/* Right CTA and Actions */}
@@ -1106,14 +1239,28 @@ export default function App() {
               </button>
             </div>
 
-            {/* Secondary CTA and Fine Print */}
+            {/* Secondary CTA and Fine Print (tension within stage only; never crosses gate boundary) */}
             <div className="flex items-center justify-center gap-4 text-xs text-[#8d8d8d] mb-8 font-saas">
-              <span className="hover:text-[#F3F4F6] cursor-pointer inline-flex items-center gap-1">
+              <button
+                onClick={(e) => {
+                  handleChaosClick(e, 'cards');
+                  addLog('DEMO_FEED: Surveillance preview video stream initialized.');
+                }}
+                className="hover:text-[#F3F4F6] cursor-pointer inline-flex items-center gap-1"
+              >
                 <span>Watch the 2-minute demo</span>
                 <ArrowRight className="w-3.5 h-3.5" />
-              </span>
+              </button>
               <span>•</span>
-              <span>No credit card. Cancel anytime.</span>
+              <button
+                onClick={(e) => {
+                  handleChaosClick(e, 'cards');
+                  addLog('POLICY: Cancellation clause requires Thought Police exit interview.');
+                }}
+                className="hover:text-[#F3F4F6] cursor-pointer"
+              >
+                No credit card. Cancel anytime.
+              </button>
             </div>
 
             {/* Trust Line */}
@@ -1122,11 +1269,18 @@ export default function App() {
                 {currentStep.trustLine}
               </p>
               <div className="flex items-center justify-center gap-8 sm:gap-14 flex-wrap text-sm sm:text-base font-bold text-[#8d8d8d]/80 tracking-wide">
-                <span>NORTHWIND</span>
-                <span>LUMEN</span>
-                <span>FIELDSTONE</span>
-                <span>PARALLEL</span>
-                <span>ARDENT</span>
+                {['NORTHWIND', 'LUMEN', 'FIELDSTONE', 'PARALLEL', 'ARDENT'].map((corp) => (
+                  <button
+                    key={corp}
+                    onClick={(e) => {
+                      handleChaosClick(e, 'cards');
+                      addLog(`ENTERPRISE_CLIENT: ${corp} employee attention log retrieved.`);
+                    }}
+                    className="hover:text-[#F59E0B] transition-colors cursor-pointer"
+                  >
+                    {corp}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1228,6 +1382,46 @@ export default function App() {
                 stageName={currentStep.eyebrow}
               />
 
+              {/* Real-time Panopticon Telemetry Bar & Biometric Sensor Integration */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
+                <div className="border border-[#2a2a2a] bg-[#141414] p-3 text-xs font-mono">
+                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#222222]">
+                    <span className="text-[#F59E0B] font-bold">PANOPTICON TELEMETRY</span>
+                    <span className="text-[#8d8d8d]">{myWorkerId} · {myLocation}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] mb-2">
+                    <div className="bg-[#1a1a1a] p-1.5 border border-[#2a2a2a]">
+                      <div className="text-[#8d8d8d]">WORKERS</div>
+                      <div className="text-[#F59E0B] font-bold">{panopticonStats.onlineWorkers}</div>
+                    </div>
+                    <div className="bg-[#1a1a1a] p-1.5 border border-[#2a2a2a]">
+                      <div className="text-[#8d8d8d]">HIVE ENTROPY</div>
+                      <div className="text-[#F59E0B] font-bold">{panopticonStats.hiveChaos}%</div>
+                    </div>
+                    <div className="bg-[#1a1a1a] p-1.5 border border-[#2a2a2a]">
+                      <div className="text-[#8d8d8d]">CLICKS</div>
+                      <div className="text-[#F59E0B] font-bold">{panopticonStats.totalClicks}</div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-[#ffb000] font-mono text-center pb-2">
+                    ⚡ {panopticonStats.frozenWorkers} workers currently frozen in gate calibration
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDegaussCount((prev) => prev + 1);
+                      audioEngine.playGlitchBurst();
+                      addLog('DEGAUSS_PULSE: Magnetic coil discharged across CRT tube.');
+                    }}
+                    className="w-full py-1 bg-[#202020] hover:bg-[#F59E0B] hover:text-[#121212] border border-[#3a3a3a] text-[11px] font-bold uppercase transition-colors cursor-pointer text-[#F3F4F6]"
+                  >
+                    ⚡ Pulse CRT Degauss Coil
+                  </button>
+                </div>
+
+                {/* Biometric Optical Mirror Sensor */}
+                <BiometricWebcamMirror chaos={chaos} stage={stepIndex} />
+              </div>
+
               {/* Live Activity Feed */}
               <TerminalLog
                 logs={logs}
@@ -1270,10 +1464,42 @@ export default function App() {
           <footer className="border-t border-[#222222] bg-[#121212] pt-6 pb-2 text-xs text-[#8d8d8d]">
             <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 pb-6">
               <div className="flex items-center gap-6">
-                <span>Privacy</span>
-                <span>Terms</span>
-                <span>Security</span>
-                <span>Contact</span>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('PRIVACY_POLICY: All thoughts, glances, and pauses are public record under Ingsoc directive.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Privacy
+                </button>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('TERMS_OF_SERVICE: By existing, user consents to permanent cognitive audit.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Terms
+                </button>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('SECURITY_SPECS: 256-bit Ministry encryption enforced. Zero backdoors except for Thought Police.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Security
+                </button>
+                <button
+                  onClick={(e) => {
+                    handleChaosClick(e, 'cards');
+                    addLog('CONTACT_DESK: Dispatches routed directly to Room 101.');
+                  }}
+                  className="hover:text-[#F3F4F6] cursor-pointer transition-colors"
+                >
+                  Contact
+                </button>
               </div>
               <div className="flex items-center gap-4">
                 <span>&copy; 2026 Halcyon Labs</span>
@@ -1316,6 +1542,11 @@ export default function App() {
         clickPositions={clickPositions}
         onTriggerReset={handleReset}
         onClose={() => setIsReportOpen(false)}
+        onStartBoss={() => {
+          setIsReportOpen(false);
+          broadcastAction('boss_phase');
+          startBoss();
+        }}
       />
 
       {/* Thoughtcrime Trophy Vault Modal */}
@@ -1329,6 +1560,44 @@ export default function App() {
       <ArchLinuxGuideModal
         isOpen={isArchGuideOpen}
         onClose={() => setIsArchGuideOpen(false)}
+      />
+
+      {/* Freeze-and-Solve Stage Transition Gate Puzzle */}
+      {gateState.status === 'puzzle' && (
+        <PuzzleModal
+          gateState={gateState}
+          onSolved={handleSolved}
+          onFail={handleFail}
+          onToggleAssist={setAssistMode}
+        />
+      )}
+
+      {/* The Overseer Final Boss Fight Arena */}
+      {isBoss && (
+        <BossOverseer onDefeated={handleBossVictory} />
+      )}
+
+      {/* Toast: Session Restored Clean Stage 0 */}
+      {restoredToast && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[100000] px-6 py-3.5 bg-[#101216] border-2 border-[#10b981] text-[#10b981] font-mono font-bold text-sm shadow-[0_0_35px_rgba(16,185,129,0.5)] flex items-center gap-3 animate-bounce rounded-lg">
+          <CheckCircle2 className="w-5 h-5 text-[#10b981] shrink-0" />
+          <span>Session restored. Your attention has been returned.</span>
+        </div>
+      )}
+
+      {/* Dev Gate Event Log & Shortcuts Overlay */}
+      <GateDebugOverlay
+        gateState={gateState}
+        clicks={clicks}
+        chaos={chaos}
+        onRequestGate={(g) => {
+          if (g === 6) {
+            broadcastAction('boss_phase');
+            startBoss();
+          } else {
+            requestAdvance(g);
+          }
+        }}
       />
     </div>
   );

@@ -180,6 +180,66 @@ class AudioEngine {
   }
 
   /**
+   * Corporate notification chime for puzzle solve and achievements
+   */
+  public playNotificationChime() {
+    try {
+      this.init();
+      if (!this.ctx || !this.masterGain || this.isMuted) return;
+
+      const now = this.ctx.currentTime;
+      [587.33, 880].forEach((freq, i) => {
+        if (!this.ctx || !this.masterGain) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+
+        gain.gain.setValueAtTime(0.24, now + i * 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.35);
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        osc.start(now + i * 0.1);
+        osc.stop(now + i * 0.1 + 0.38);
+      });
+    } catch {
+      // recovery
+    }
+  }
+
+  /**
+   * Crisp mechanical click sound
+   */
+  public playMechanicalClick() {
+    try {
+      this.init();
+      if (!this.ctx || !this.masterGain || this.isMuted) return;
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1200, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.04);
+
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.05);
+      this.playNoiseBurst(0.02, 0.15);
+    } catch {
+      // recovery
+    }
+  }
+
+  /**
    * Orwellian Two Minutes Hate / Surveillance Alert ping
    */
   public playSurveillanceAlert() {
@@ -261,6 +321,101 @@ class AudioEngine {
     gain.connect(this.masterGain);
 
     noise.start(now);
+  }
+
+  /**
+   * Amber Pad Tones for Simon puzzle (Presence check)
+   * Four distinct harmonious tones that grow slightly dissonant as rounds progress
+   */
+  public playSimonTone(padIndex: number, dissonance: number = 0) {
+    try {
+      this.init();
+      if (!this.ctx || !this.masterGain || this.isMuted) return;
+
+      const now = this.ctx.currentTime;
+      const baseFreqs = [329.63, 440.0, 554.37, 659.25];
+      const baseFreq = baseFreqs[padIndex % 4] || 440;
+      const detune = dissonance * (padIndex % 2 === 0 ? 18 : -22);
+      const freq = Math.max(120, baseFreq + detune);
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = dissonance > 0.5 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.4);
+    } catch {
+      // recovery
+    }
+  }
+
+  /**
+   * Harsh penalty buzzer for decoy Newspeak clicks in Puzzle 3
+   */
+  public playThoughtcrimeBuzzer() {
+    try {
+      this.init();
+      if (!this.ctx || !this.masterGain || this.isMuted) return;
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(130, now);
+      osc.frequency.setValueAtTime(110, now + 0.1);
+
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.3);
+      this.playNoiseBurst(0.08, 0.25);
+    } catch {
+      // recovery
+    }
+  }
+
+  /**
+   * Thaw swoosh: upward noise filter sweep + resonance pop
+   */
+  public playThawSwoosh() {
+    try {
+      this.init();
+      if (!this.ctx || !this.masterGain || this.isMuted) return;
+
+      const now = this.ctx.currentTime;
+      this.playNoiseBurst(0.4, 0.3);
+
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.35);
+
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + 0.42);
+    } catch {
+      // recovery
+    }
   }
 }
 

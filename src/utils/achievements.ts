@@ -83,6 +83,62 @@ export const INITIAL_ACHIEVEMENTS: Achievement[] = [
     icon: '🎯',
     unlockedAt: null,
   },
+  {
+    id: 'puzzle_1_solved',
+    title: 'Calibration Verified',
+    description: 'Passed pointer and attention calibration gate into Stage 1.',
+    icon: '🎯',
+    unlockedAt: null,
+  },
+  {
+    id: 'puzzle_2_solved',
+    title: 'Cadence Attested',
+    description: 'Confirmed biometric presence rhythm across corporate sequence gates.',
+    icon: '🔔',
+    unlockedAt: null,
+  },
+  {
+    id: 'puzzle_3_solved',
+    title: 'Harmonized Lexicon',
+    description: 'Successfully excised unauthorized terminology from Ministry archives.',
+    icon: '✂️',
+    unlockedAt: null,
+  },
+  {
+    id: 'puzzle_4_solved',
+    title: 'Reconciled Optic',
+    description: 'Reconstructed the Overseer 3x3 Bayer-dithered eye fragment puzzle.',
+    icon: '🧩',
+    unlockedAt: null,
+  },
+  {
+    id: 'puzzle_5_solved',
+    title: 'Carrier Phase Lock',
+    description: 'Held harmonic carrier wave resonance on Central Oscilloscope for 2 seconds.',
+    icon: '📻',
+    unlockedAt: null,
+  },
+  {
+    id: 'flawless_solve',
+    title: 'Flawless Attestation',
+    description: 'Passed a cognitive verification protocol without a single discrepancy.',
+    icon: '⭐',
+    unlockedAt: null,
+  },
+  {
+    id: 'no_assist_run',
+    title: 'Unyielding Orthodoxy',
+    description: 'Completed protocol stages without enabling Friction Reduction assistance.',
+    icon: '🛡️',
+    unlockedAt: null,
+  },
+  {
+    id: 'boss_defeated',
+    title: 'Overseer Deposed',
+    description: 'Defeated the Overseer across all 3 phases and restored clean Stage 0 Halcyon.',
+    icon: '👑',
+    unlockedAt: null,
+  },
 ];
 
 class AchievementsEngine {

@@ -12,6 +12,27 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Special+Elite&family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <script>
+      // Suppress benign Vite dev-server HMR / WebSocket transport disconnects in sandboxed preview iframe
+      window.addEventListener('unhandledrejection', function(e) {
+        var msg = (e && e.reason && (e.reason.message || e.reason.stack || String(e.reason))) || '';
+        if (
+          msg.includes('WebSocket') ||
+          msg.includes('createWebSocketModuleRunnerTransport') ||
+          msg.includes('@vite/client') ||
+          msg.includes('closed without opened')
+        ) {
+          e.preventDefault();
+        }
+      });
+      window.addEventListener('error', function(e) {
+        var msg = (e && (e.message || '')) || '';
+        var src = (e && e.filename) || '';
+        if (msg.includes('WebSocket') || src.includes('@vite/client')) {
+          e.preventDefault();
+        }
+      });
+    </script>
   </head>
   <body class="bg-[#121316] text-[#f3f4f6] antialiased select-none selection:bg-[#ffb000] selection:text-black">
     <!-- SVG Distortion Filter for Real Glitch Effects -->

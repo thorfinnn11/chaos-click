@@ -9,6 +9,7 @@ interface ChaosReportModalProps {
   clickPositions: { x: number; y: number }[];
   onTriggerReset: () => void;
   onClose: () => void;
+  onStartBoss?: () => void;
 }
 
 export const ChaosReportModal: React.FC<ChaosReportModalProps> = ({
@@ -18,6 +19,7 @@ export const ChaosReportModal: React.FC<ChaosReportModalProps> = ({
   clickPositions,
   onTriggerReset,
   onClose,
+  onStartBoss,
 }) => {
   const [isPoweringOff, setIsPoweringOff] = useState(false);
   const [twistMessage, setTwistMessage] = useState('');
@@ -27,6 +29,11 @@ export const ChaosReportModal: React.FC<ChaosReportModalProps> = ({
   const grudgeState = grudgeMemory.getState();
 
   const handleReturnToDesk = () => {
+    if (onStartBoss) {
+      onClose();
+      onStartBoss();
+      return;
+    }
     setIsPoweringOff(true);
     // Reverse CRT power-on transition back to clean Halcyon
     setTimeout(() => {

@@ -56,6 +56,11 @@
   font-family: 'Bricolage Grotesque', sans-serif;
 }
 
+/* Frozen Gate State: pause CSS animations on the background page */
+[data-frozen="true"] * {
+  animation-play-state: paused !important;
+}
+
 /* Faint Amber Glow */
 .amber-glow {
   text-shadow: 0 0 5px rgba(245, 158, 11, 0.28);
